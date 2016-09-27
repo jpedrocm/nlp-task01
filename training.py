@@ -19,7 +19,14 @@ def get_words_features(docs):
 		words = reuters.words(doc)
 		list_words.extend(words)
 
-	return list(set(list_words))
+	words_features = list(set(list_words))
+	freq = extract_feature(list_words,words_features)
+	freq_items = freq.items()
+	list_freq = map(lambda (k,v): v , freq_items)
+	avg = mean(list_freq)
+	std = std_dev(list_freq, avg)
+	fil = filter(lambda (k,v):avg<=v and (avg+std)>=v, freq_items)
+	return fil
 
 def extract_feature(words, features):
 	freq = {}
@@ -36,23 +43,24 @@ def main():
 
 	words_features = get_words_features(reuters.fileids())
 
-	words= []
-	for doc in reuters.fileids():
-		words.extend(reuters.words(doc))	
+	print len(words_features)
+	#words= []
+	#for doc in reuters.fileids("aql"):
+	#	words.extend(reuters.words(doc))	
 
-	features = extract_feature(words,words_features)
-	od = sorted(features.items(), key=lambda (k,v): (v,k) , reverse = True)#sorted(features.items(),key=operator.itemgetter(0))
+#	features = extract_feature(words,words_features)
+#	od = sorted(features.items(), key=lambda (k,v): (v,k) , reverse = True)#sorted(features.items(),key=operator.itemgetter(0))
 	
-	list_items = map(lambda (k,v): v , od)
-	avg = mean(list_items)
-	std = std_dev(list_items, avg)
+#	list_items = map(lambda (k,v): v , od)
+#	avg = mean(list_items)
+#	std = std_dev(list_items, avg)
 
-	for i in range(100):
-		print od[i]
+#	for i in range(100):
+#		print od[i]
 
-	print max(list_items)
-	print avg
-	print std
+	#print max(list_items)
+	#print avg
+	#print std
 	"""for key,value in od:	
 		print str(key)+" - "+str(value)
 	"""
