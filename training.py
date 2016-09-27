@@ -13,7 +13,7 @@ def std_dev(list_items, mean_items):
     return math.sqrt(sum(variance_list)/len(list_items))
 
 
-def get_words_features(docs):
+def get_words_features():
 	list_words = []
 	for doc in reuters.fileids():
 		words = reuters.words(doc)
@@ -37,55 +37,42 @@ def extract_feature(words, features):
 			freq[w] = 1	
 	return freq
 
+
 def main():
 	training_set = []
 	test_set = []
 
-	words_features = get_words_features(reuters.fileids())
+	bag_of_words = get_words_features()
 
-	print len(words_features)
-	#words= []
-	#for doc in reuters.fileids("aql"):
-	#	words.extend(reuters.words(doc))	
+	classes = ["acq","earn","money-fx","grain","crude","trade","interest","ship","wheat","corn"]
 
-#	features = extract_feature(words,words_features)
-#	od = sorted(features.items(), key=lambda (k,v): (v,k) , reverse = True)#sorted(features.items(),key=operator.itemgetter(0))
-	
-#	list_items = map(lambda (k,v): v , od)
-#	avg = mean(list_items)
-#	std = std_dev(list_items, avg)
+	#print classes
 
-#	for i in range(100):
-#		print od[i]
+	#print reuters.categories();
 
-	#print max(list_items)
-	#print avg
-	#print std
-	"""for key,value in od:	
-		print str(key)+" - "+str(value)
-	"""
-"""
-	for doc in reuters.fileids():
-		if doc.startswith('test'):
-			test_set.append(doc)
+	train_set = []
+	test_set = []
+
+	for doc in reuters.fileids("acq"):
+		words = reuters.words(doc)
+		feat = extract_feature(words,bag_of_words)
+		inst = (feat,"acq")
+		if doc.startswith("train"):
+			train_set.append(inst)
 		else:
-			training_set.append(doc)
+			test_set.append(inst)	
 
-	print(len(training_set))
-	print(len(test_set))
-	#cat = reuters.categories();
-	
-	doc_acq = reuters.fileids("acq");
-	doc = reuters.words(doc_acq[0]);
-	words = list(set(doc))
-	print(len(words))
-	print(len(doc))
-	freq = {}
-	for w in words:
-		freq[w] = doc.count(w)
-	print freq
-	#print(doc_acq)
-	#print(cat)
-	#print(len(cat))
-"""
+	non_docs = set(reuters.fileids(classes)) - set(reuters.fileids("acq"));
+
+	for doc in non_docs:
+		words = reuters.words(doc)
+		feat = extract_feature(words,bag_of_words)
+		inst = (feat,"non_acq")
+		if doc.startswith("train"):
+			train_set.append(inst)
+		else:
+			test_set.append(inst)
+
+	print len(train_set)	
+
 main()	
