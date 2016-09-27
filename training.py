@@ -25,7 +25,7 @@ def get_words_features(docs):
 	list_freq = map(lambda (k,v): v , freq_items)
 	avg = mean(list_freq)
 	std = std_dev(list_freq, avg)
-	fil = filter(lambda (k,v):avg<=v and (avg+std)>=v, freq_items)
+	fil = filter(lambda (k,v):avg-std/100<=v and (avg+std/100)>=v, freq_items)
 	return fil
 
 def extract_feature(words, features):
