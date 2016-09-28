@@ -7,6 +7,8 @@ from nltk.corpus import reuters
 from nltk.metrics import *
 from nltk.classify import *
 
+CATEGORIES = ["earn", "acq", "money-fx", "grain", "crude", "trade", "interest", "ship", "wheat", "corn"]
+
 def mean(list_items):
     return sum(list_items)/len(list_items)
 
@@ -14,6 +16,18 @@ def std_dev(list_items, mean_items):
     variance_list = map(lambda x : pow(x-mean_items, 2), list_items)
     return math.sqrt(sum(variance_list)/len(list_items))
 
+def f_measure(precision, recall):
+	return (2*precision*recall) / float(precision+recall)
+
+def precision(tp, fp):
+	return tp / float(tp+fp)
+
+def accuracy(tp, tn, fp, fn):
+	numerator = tp+tn
+	return float(numerator) / float(numerator+fp+fn)
+
+def recall(tp, fn):
+	return tp / float(tp+fn)
 
 def get_words_features():
 	list_words = []
@@ -39,7 +53,7 @@ def extract_feature(words, features):
 			freq[w] = 1	
 	return freq
 
-def get_sets_from_category(category,bag_of_words, classes):
+def get_sets_from_category(category, bag_of_words):
 	train_set = []
 	test_set = []
 
@@ -52,7 +66,7 @@ def get_sets_from_category(category,bag_of_words, classes):
 		else:
 			test_set.append(inst)	
 
-	non_docs = set(reuters.fileids(classes)) - set(reuters.fileids(category));
+	non_docs = set(reuters.fileids(CLASSES)) - set(reuters.fileids(category));
 
 	for doc in non_docs:
 		words = reuters.words(doc)
@@ -65,20 +79,9 @@ def get_sets_from_category(category,bag_of_words, classes):
 	
 	return (train_set,test_set)
 
-def f_measure(precision, recall):
-	return (2*precision*recall) / (precision+recall)
+def updateValuesToMicroMean(tp, tn, fp, fn):
 
-def precision(tp, fp):
-	return tp / float(tp+fp)
-
-def accuracy(tp, tn, fp, fn):
-	numerator = tp+tn
-	return float(numerator) / float(numerator+fp+fn)
-
-def recall(tp, fn):
-	return tp / float(tp+fn)
-
-def get_metrics(ref,resu, cat):
+def get_metrics(ref, resu, cat):
 	ref_set = set(ref)
 	resu_set = set(resu)
 	
@@ -90,7 +93,8 @@ def get_metrics(ref,resu, cat):
 	tn = conf_matrix[non_clabel,non_clabel]
 	fn = conf_matrix[clabel,non_clabel]
 	fp = conf_matrix[non_clabel,clabel]
-	
+
+	updateValuesToMicroMean(tp, tn, fp, fn)
 
 	print "tp "+str(tp)
 	print "tn "+str(tn)
@@ -100,29 +104,18 @@ def get_metrics(ref,resu, cat):
 	prec = precision(tp,fp)
 	rec = recall(tp,fn)
 
-
 	print "Acuracy ("+cat+") "+str(accuracy(tp,tn,fp,fn))
 	print "Precision ("+cat+") "+str(prec)
 	print "Recall ("+cat+") "+str(rec)
 	print "F-Measure ("+cat+") "+str(f_measure(prec,rec))
 	print "--------------------------------------------------------------------------------"
 
-
 def main():
-	training_set = []
-	test_set = []
-
 	bag_of_words = get_words_features()
 
-	classes = ["acq","earn","money-fx","grain","crude","trade","interest","ship","wheat","corn"]
-
-	#print classes
-
-	#print reuters.categories();
-
-	for cat in classes:
-		train_set, test_set = get_sets_from_category(cat,bag_of_words, classes)
-		"""naive_classifier = nltk.NaiveBayesClassifier.train(train_set)
+	for cat in CLASSES:
+		train_set, test_set = get_sets_from_category(cat, bag_of_words)
+		naive_classifier = nltk.NaiveBayesClassifier.train(train_set)
 		ref = []
 		resu = []
 		for (feat,label) in test_set:
@@ -131,7 +124,7 @@ def main():
 			resu.append(observed)
 
 		get_metrics(ref,resu,cat)
-		"""
+		
 
 		maxent_classif = nltk.classify.DecisionTreeClassifier.train(train_set)
 
