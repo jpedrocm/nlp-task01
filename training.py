@@ -48,7 +48,7 @@ def extract_feature(words, features):
 	freq = {}
 	for w in words:
 		if(w in freq):
-			freq[w] = freq[w] + 1
+			freq[w] += 1
 		else:
 			freq[w] = 1	
 	return freq
@@ -58,8 +58,8 @@ def get_sets_from_category(category, bag_of_words):
 	test_set = []
 
 	for doc in reuters.fileids(category):
-		words = reuters.words(doc)
-		feat = extract_feature(words,bag_of_words)
+		words_in_doc = reuters.words(doc)
+		feat = extract_feature(words_in_doc, bag_of_words)
 		inst = (feat,category)
 		if doc.startswith("train"):
 			train_set.append(inst)
@@ -69,17 +69,15 @@ def get_sets_from_category(category, bag_of_words):
 	non_docs = set(reuters.fileids(CLASSES)) - set(reuters.fileids(category));
 
 	for doc in non_docs:
-		words = reuters.words(doc)
-		feat = extract_feature(words,bag_of_words)
+		words_in_doc = reuters.words(doc)
+		feat = extract_feature(words_in_doc, bag_of_words)
 		inst = (feat,"non_"+category)
 		if doc.startswith("train"):
 			train_set.append(inst)
 		else:
 			test_set.append(inst)
 	
-	return (train_set,test_set)
-
-def updateValuesToMicroMean(tp, tn, fp, fn):
+	return (train_set, test_set)
 
 def get_metrics(ref, resu, cat):
 	ref_set = set(ref)
@@ -94,24 +92,27 @@ def get_metrics(ref, resu, cat):
 	fn = conf_matrix[clabel,non_clabel]
 	fp = conf_matrix[non_clabel,clabel]
 
-	updateValuesToMicroMean(tp, tn, fp, fn)
-
-	print "tp "+str(tp)
-	print "tn "+str(tn)
-	print "fn "+str(fn)
-	print "fp "+str(fp)
-
 	prec = precision(tp,fp)
 	rec = recall(tp,fn)
+	acc = accuracy(tp, tn, fp, fn)
+	f1 = f_measure(prec, rec)
 
-	print "Acuracy ("+cat+") "+str(accuracy(tp,tn,fp,fn))
-	print "Precision ("+cat+") "+str(prec)
-	print "Recall ("+cat+") "+str(rec)
-	print "F-Measure ("+cat+") "+str(f_measure(prec,rec))
-	print "--------------------------------------------------------------------------------"
+	return {category: cat.upper(), tp: tp, tn: tn, fp: fp, fn: fn, precision: prec, accuracy: acc, recall: rec, fmeasure: f1}
+
+def print_metrics(metrics):
+	print metrics[category]
+	print "True Positives: " + str(metrics[tp])
+	print "True Negatives: " + str(metrics[tn])
+	print "False Positives: " + str(metrics[fp])
+	print "False Negatives: " + str(metrics[fn])
+	print "Accuracy: " + str(metrics[accuracy])
+	print "Precision: " + str(metrics[precision])
+	print "Recall: " + str(metrics[recall])
+	print "F-measure: " + str(metrics[fmeasure])
 
 def main():
 	bag_of_words = get_words_features()
+	metrics_per_category_classifier = []
 
 	for cat in CLASSES:
 		train_set, test_set = get_sets_from_category(cat, bag_of_words)
@@ -123,18 +124,8 @@ def main():
 			observed = naive_classifier.classify(feat)
 			resu.append(observed)
 
-		get_metrics(ref,resu,cat)
-		
-
-		maxent_classif = nltk.classify.DecisionTreeClassifier.train(train_set)
-
-		ref = []
-		resu = []
-		for (feat,label) in test_set:
-			ref.append(label)
-			observed = maxent_classif.classify(feat)
-			resu.append(observed)
-
-		get_metrics(ref,resu,cat)
-				
-main()	
+		category_classifier_metrics = get_metrics(ref, resu, cat)
+		print_metrics(category_classifier_metrics)
+		metrics_per_category_classifier.append(category_classifier_metrics)
+			
+main()
