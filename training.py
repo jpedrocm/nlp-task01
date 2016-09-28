@@ -4,6 +4,8 @@ import collections
 import nltk
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import reuters
+from nltk.metrics import *
+from nltk.classify import *
 
 def mean(list_items):
     return sum(list_items)/len(list_items)
@@ -37,6 +39,74 @@ def extract_feature(words, features):
 			freq[w] = 1	
 	return freq
 
+def get_sets_from_category(category,bag_of_words, classes):
+	train_set = []
+	test_set = []
+
+	for doc in reuters.fileids(category):
+		words = reuters.words(doc)
+		feat = extract_feature(words,bag_of_words)
+		inst = (feat,category)
+		if doc.startswith("train"):
+			train_set.append(inst)
+		else:
+			test_set.append(inst)	
+
+	non_docs = set(reuters.fileids(classes)) - set(reuters.fileids(category));
+
+	for doc in non_docs:
+		words = reuters.words(doc)
+		feat = extract_feature(words,bag_of_words)
+		inst = (feat,"non_"+category)
+		if doc.startswith("train"):
+			train_set.append(inst)
+		else:
+			test_set.append(inst)
+	
+	return (train_set,test_set)
+
+def f_measure(precision, recall):
+	return (2*precision*recall) / (precision+recall)
+
+def precision(tp, fp):
+	return tp / float(tp+fp)
+
+def accuracy(tp, tn, fp, fn):
+	numerator = tp+tn
+	return float(numerator) / float(numerator+fp+fn)
+
+def recall(tp, fn):
+	return tp / float(tp+fn)
+
+def get_metrics(ref,resu, cat):
+	ref_set = set(ref)
+	resu_set = set(resu)
+	
+	clabel = cat;
+	non_clabel = "non_"+cat;
+
+	conf_matrix = ConfusionMatrix(ref, resu)
+	tp = conf_matrix[clabel,clabel]
+	tn = conf_matrix[non_clabel,non_clabel]
+	fn = conf_matrix[clabel,non_clabel]
+	fp = conf_matrix[non_clabel,clabel]
+	
+
+	print "tp "+str(tp)
+	print "tn "+str(tn)
+	print "fn "+str(fn)
+	print "fp "+str(fp)
+
+	prec = precision(tp,fp)
+	rec = recall(tp,fn)
+
+
+	print "Acuracy ("+cat+") "+str(accuracy(tp,tn,fp,fn))
+	print "Precision ("+cat+") "+str(prec)
+	print "Recall ("+cat+") "+str(rec)
+	print "F-Measure ("+cat+") "+str(f_measure(prec,rec))
+	print "--------------------------------------------------------------------------------"
+
 
 def main():
 	training_set = []
@@ -50,29 +120,28 @@ def main():
 
 	#print reuters.categories();
 
-	train_set = []
-	test_set = []
+	for cat in classes:
+		train_set, test_set = get_sets_from_category(cat,bag_of_words, classes)
+		"""naive_classifier = nltk.NaiveBayesClassifier.train(train_set)
+		ref = []
+		resu = []
+		for (feat,label) in test_set:
+			ref.append(label)
+			observed = naive_classifier.classify(feat)
+			resu.append(observed)
 
-	for doc in reuters.fileids("acq"):
-		words = reuters.words(doc)
-		feat = extract_feature(words,bag_of_words)
-		inst = (feat,"acq")
-		if doc.startswith("train"):
-			train_set.append(inst)
-		else:
-			test_set.append(inst)	
+		get_metrics(ref,resu,cat)
+		"""
 
-	non_docs = set(reuters.fileids(classes)) - set(reuters.fileids("acq"));
+		maxent_classif = nltk.classify.DecisionTreeClassifier.train(train_set)
 
-	for doc in non_docs:
-		words = reuters.words(doc)
-		feat = extract_feature(words,bag_of_words)
-		inst = (feat,"non_acq")
-		if doc.startswith("train"):
-			train_set.append(inst)
-		else:
-			test_set.append(inst)
+		ref = []
+		resu = []
+		for (feat,label) in test_set:
+			ref.append(label)
+			observed = maxent_classif.classify(feat)
+			resu.append(observed)
 
-	print len(train_set)	
-
+		get_metrics(ref,resu,cat)
+				
 main()	
