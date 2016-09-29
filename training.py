@@ -7,7 +7,7 @@ from nltk.corpus import reuters
 from nltk.metrics import *
 from nltk.classify import *
 
-CATEGORIES = ["earn", "acq", "money-fx", "grain", "crude", "trade", "interest", "ship", "wheat", "corn"]
+CLASSES = ["earn", "acq", "money-fx", "grain", "crude", "trade", "interest", "ship", "wheat", "corn"]
 
 def mean(list_items):
     return sum(list_items)/len(list_items)
@@ -97,18 +97,50 @@ def get_metrics(ref, resu, cat):
 	acc = accuracy(tp, tn, fp, fn)
 	f1 = f_measure(prec, rec)
 
-	return {category: cat.upper(), tp: tp, tn: tn, fp: fp, fn: fn, precision: prec, accuracy: acc, recall: rec, fmeasure: f1}
+	return {'category': cat.upper(), 'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn, 'precision': prec, 'accuracy': acc, 'recall': rec, 'fmeasure': f1}
 
-def print_metrics(metrics):
-	print metrics[category]
-	print "True Positives: " + str(metrics[tp])
-	print "True Negatives: " + str(metrics[tn])
-	print "False Positives: " + str(metrics[fp])
-	print "False Negatives: " + str(metrics[fn])
-	print "Accuracy: " + str(metrics[accuracy])
-	print "Precision: " + str(metrics[precision])
-	print "Recall: " + str(metrics[recall])
-	print "F-measure: " + str(metrics[fmeasure])
+def print_metrics(metrics, macro = False):
+	print metrics['category']
+	if not macro:
+		print "True Positives: " + str(metrics['tp'])
+		print "True Negatives: " + str(metrics['tn'])
+		print "False Positives: " + str(metrics['fp'])
+		print "False Negatives: " + str(metrics['fn'])
+	print "Accuracy: " + str(metrics['accuracy'])
+	print "Precision: " + str(metrics['precision'])
+	print "Recall: " + str(metrics['recall'])
+	print "F-measure: " + str(metrics['fmeasure'])
+	print ""
+
+def calculate_micro_metrics(list_of_metrics, model):
+	total_tp = calculate_micro_metric(list_of_metrics, 'tp')
+	total_tn = calculate_micro_metric(list_of_metrics, 'tn')
+	total_fp = calculate_micro_metric(list_of_metrics, 'fp')
+	total_fn = calculate_micro_metric(list_of_metrics, 'fn')
+
+	prec = precision(total_tp, total_fp)
+	rec = recall(total_tp, total_fn)
+	acc = accuracy(total_tp, total_tn, total_fp, total_fn)
+	f1 = f_measure(prec, rec)
+
+	return {'category': model.upper(), 'tp': total_tp, 'tn': total_tn, 'fp': total_fp, 'fn': total_fn,
+	 'precision': prec, 'accuracy': acc, 'recall': rec, 'fmeasure': f1}
+
+def calculate_micro_metric(list_of_metrics, metric_name):
+	list_of_metric = map(lambda x: x[metric_name], list_of_metrics);
+	return sum(list_of_metric)
+
+def calculate_macro_metrics(list_of_metrics, model):
+	mean_prec = calculate_macro_metric(list_of_metrics, 'precision')
+	mean_rec = calculate_macro_metric(list_of_metrics, 'recall')
+	mean_fmeasure = calculate_macro_metric(list_of_metrics, 'fmeasure')
+	mean_acc = calculate_macro_metric(list_of_metrics, 'accuracy')
+
+	return {'precision': mean_prec, 'recall': mean_rec, 'fmeasure': mean_fmeasure, 'accuracy': mean_acc, 'category': model.upper()}
+
+def calculate_macro_metric(list_of_metrics, metric_name):
+	list_of_metric = map(lambda x: x[metric_name], list_of_metrics)
+	return mean(list_of_metric)
 
 def main():
 	bag_of_words = get_words_features()
@@ -127,5 +159,13 @@ def main():
 		category_classifier_metrics = get_metrics(ref, resu, cat)
 		print_metrics(category_classifier_metrics)
 		metrics_per_category_classifier.append(category_classifier_metrics)
+
+	macro_metrics = calculate_macro_metrics(metrics_per_category_classifier, 'Naive Bayes Classifier')
+	print "Macro Metrics"
+	print_metrics(macro_metrics, macro = True)
+
+	micro_metrics = calculate_micro_metrics(metrics_per_category_classifier, 'Naive Bayes Classifier')
+	print "Micro Metrics"
+	print_metrics(micro_metrics)
 			
 main()
