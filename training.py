@@ -2,19 +2,23 @@ import math
 import operator
 import collections
 import nltk
+import string
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import reuters
+from nltk.corpus import stopwords
 from nltk.metrics import *
 from nltk.classify import *
 
 CLASSES = ["earn", "acq", "money-fx", "grain", "crude", "trade", "interest", "ship", "wheat", "corn"]
+STOPWORDS = stopwords.words('english')
+PUNCTUATION_LIST = list(string.punctuation)
 
 def mean(list_items):
-    return sum(list_items)/len(list_items)
+    return sum(list_items)/float(len(list_items))
 
 def std_dev(list_items, mean_items):
     variance_list = map(lambda x : pow(x-mean_items, 2), list_items)
-    return math.sqrt(sum(variance_list)/len(list_items))
+    return math.sqrt(sum(variance_list)/float(len(list_items)))
 
 def f_measure(precision, recall):
 	return (2*precision*recall) / float(precision+recall)
@@ -28,56 +32,6 @@ def accuracy(tp, tn, fp, fn):
 
 def recall(tp, fn):
 	return tp / float(tp+fn)
-
-def get_words_features():
-	list_words = []
-	for doc in reuters.fileids():
-		words = reuters.words(doc)
-		list_words.extend(words)
-
-	words_features = list(set(list_words))
-	freq = extract_feature(list_words,words_features)
-	freq_items = freq.items()
-	list_freq = map(lambda (k,v): v , freq_items)
-	avg = mean(list_freq)
-	std = std_dev(list_freq, avg)
-	fil = filter(lambda (k,v):avg-std/100<=v and (avg+std/100)>=v, freq_items)
-	return fil
-
-def extract_feature(words, features):
-	freq = {}
-	for w in words:
-		if(w in freq):
-			freq[w] += 1
-		else:
-			freq[w] = 1	
-	return freq
-
-def get_sets_from_category(category, bag_of_words):
-	train_set = []
-	test_set = []
-
-	for doc in reuters.fileids(category):
-		words_in_doc = reuters.words(doc)
-		feat = extract_feature(words_in_doc, bag_of_words)
-		inst = (feat,category)
-		if doc.startswith("train"):
-			train_set.append(inst)
-		else:
-			test_set.append(inst)	
-
-	non_docs = set(reuters.fileids(CLASSES)) - set(reuters.fileids(category));
-
-	for doc in non_docs:
-		words_in_doc = reuters.words(doc)
-		feat = extract_feature(words_in_doc, bag_of_words)
-		inst = (feat,"non_"+category)
-		if doc.startswith("train"):
-			train_set.append(inst)
-		else:
-			test_set.append(inst)
-	
-	return (train_set, test_set)
 
 def get_metrics(ref, resu, cat):
 	ref_set = set(ref)
@@ -141,6 +95,84 @@ def calculate_macro_metrics(list_of_metrics, model):
 def calculate_macro_metric(list_of_metrics, metric_name):
 	list_of_metric = map(lambda x: x[metric_name], list_of_metrics)
 	return mean(list_of_metric)
+
+def get_words_features():
+	list_words = []
+
+	for category in CLASSES:
+		category_words = []
+		for doc in reuters.fileids(category):
+			if doc.startswith('train'):
+				words = reuters.words(doc)
+				words = map(lambda w: w.lower(), words)
+				category_words.extend(words)
+		category_words = remove_stopwords_and_punctuation(category_words)
+		category_words = filter_words_category(category_words)
+		list_words.extend(category_words)
+
+	return list_words
+
+def remove_stopwords_and_punctuation(words):
+	return filter(lambda x: x not in STOPWORDS and x not in PUNCTUATION_LIST, words)
+
+def filter_words_category(words):
+	words_features = list(set(words))
+	freq = count_frequency(words)
+	freq_items = freq.items()
+	list_freq = map(lambda (k,v): v , freq_items)
+	avg = mean(list_freq)
+	std = std_dev(list_freq, avg)
+	fil = filter(lambda (k,v): (avg-std/100) <=v and (avg+std/100)>=v, freq_items)
+
+	return map(lambda (k,v): k, fil)
+
+def count_frequency(words):
+	freq = {}
+	for w in words:
+		if(w in freq):
+			freq[w] += 1
+		else:
+			freq[w] = 1	
+
+	return freq
+
+def extract_feature(words, features):
+	freq = {}
+	for w in words:
+		if w in features:
+			if(w in freq):
+				freq[w] += 1
+			else:
+				freq[w] = 1
+	return freq
+
+def get_sets_from_category(category, bag_of_words):
+	train_set = []
+	test_set = []
+
+	for doc in reuters.fileids(category):
+		words_in_doc = map(lambda w: w.lower(), reuters.words(doc))
+		words_in_doc = remove_stopwords_and_punctuation(words_in_doc)
+		feat = extract_feature(words_in_doc, bag_of_words)
+		inst = (feat, category)
+		if doc.startswith("train"):
+			train_set.append(inst)
+		else:
+			test_set.append(inst)	
+
+	non_docs = set(reuters.fileids(CLASSES)) - set(reuters.fileids(category));
+
+	for doc in non_docs:
+		words_in_doc = map(lambda w: w.lower(), reuters.words(doc))
+		words_in_doc = remove_stopwords_and_punctuation(words_in_doc)
+		feat = extract_feature(words_in_doc, bag_of_words)
+		inst = (feat,"non_"+category)
+		if doc.startswith("train"):
+			train_set.append(inst)
+		else:
+			test_set.append(inst)
+	
+	return (train_set, test_set)
 
 def main():
 	bag_of_words = get_words_features()
