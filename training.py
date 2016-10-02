@@ -1,8 +1,7 @@
 import math
 import operator
 import collections
-import nltk
-import string
+import nltk, string, random
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import reuters
 from nltk.corpus import stopwords
@@ -172,6 +171,9 @@ def get_sets_from_category(category, bag_of_words):
 
 	train_set.extend(train_set_remaining)
 	test_set.extend(test_set_remaining)
+
+	random.shuffle(train_set)
+	random.shuffle(test_set)
 	
 	return (train_set, test_set)
 
@@ -180,10 +182,12 @@ def main():
 	metrics_per_category_classifier = []
 
 	for cat in CLASSES:
-		train_set, test_set = get_sets_from_category(cat, bag_of_words)
-		naive_classifier = nltk.NaiveBayesClassifier.train(train_set)
 		ref = []
 		resu = []
+
+		train_set, test_set = get_sets_from_category(cat, bag_of_words)
+		naive_classifier = nltk.NaiveBayesClassifier.train(train_set)
+
 		for (feat,label) in test_set:
 			ref.append(label)
 			observed = naive_classifier.classify(feat)
