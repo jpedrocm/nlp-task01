@@ -146,31 +146,32 @@ def extract_feature(words, features):
 				freq[w] = 1
 	return freq
 
-def get_sets_from_category(category, bag_of_words):
+def get_sets(category_name, bag_of_words, docs):
 	train_set = []
 	test_set = []
 
-	for doc in reuters.fileids(category):
+	for doc in docs:
 		words_in_doc = map(lambda w: w.lower(), reuters.words(doc))
 		words_in_doc = remove_stopwords_and_punctuation(words_in_doc)
 		feat = extract_feature(words_in_doc, bag_of_words)
-		inst = (feat, category)
-		if doc.startswith("train"):
-			train_set.append(inst)
-		else:
-			test_set.append(inst)	
-
-	non_docs = set(reuters.fileids(CLASSES)) - set(reuters.fileids(category));
-
-	for doc in non_docs:
-		words_in_doc = map(lambda w: w.lower(), reuters.words(doc))
-		words_in_doc = remove_stopwords_and_punctuation(words_in_doc)
-		feat = extract_feature(words_in_doc, bag_of_words)
-		inst = (feat,"non_"+category)
+		inst = (feat, category_name)
 		if doc.startswith("train"):
 			train_set.append(inst)
 		else:
 			test_set.append(inst)
+
+	return (train_set, test_set)
+
+def get_sets_from_category(category, bag_of_words):
+
+	docs = reuters.fileids(category)
+	(train_set, test_set) = get_sets(category, bag_of_words, docs)
+
+	non_docs = set(reuters.fileids(CLASSES)) - set(reuters.fileids(category));
+	(train_set_remaining, test_set_remaining) = get_sets("non_"+category, bag_of_words, non_docs)
+
+	train_set.extend(train_set_remaining)
+	test_set.extend(test_set_remaining)
 	
 	return (train_set, test_set)
 
