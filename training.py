@@ -147,7 +147,7 @@ def extract_feature(words, features):
 	for w in words:
 		if w in features:
 			if(w in freq):
-				freq[w] += 1
+				freq[w] = 1
 			else:
 				freq[w] = 1
 	return freq
@@ -190,7 +190,7 @@ def main():
 	bag_of_words = get_words_features()
 	
 	metrics_per_category_classifier = []
-	
+
 	print "Len Bag Of Words "+str(len(bag_of_words))
 	for cat in CLASSES:
 	
