@@ -7,6 +7,7 @@ from nltk.corpus import reuters
 from nltk.corpus import stopwords
 from nltk.metrics import *
 from nltk.classify import *
+from sklearn.svm import SVC
 
 CLASSES = ["earn", "acq", "money-fx", "grain", "crude", "trade", "interest", "ship", "wheat", "corn"]
 STOPWORDS = stopwords.words('english')
@@ -95,19 +96,18 @@ def calculate_macro_metric(list_of_metrics, metric_name):
 	list_of_metric = map(lambda x: x[metric_name], list_of_metrics)
 	return mean(list_of_metric)
 
-def get_words_features():
+def get_words_features(category):
 	list_words = []
 
-	for category in CLASSES:
-		category_words = []
-		for doc in reuters.fileids(category):
-			if doc.startswith('train'):
-				words = reuters.words(doc)
-				words = map(lambda w: w.lower(), words)
-				category_words.extend(words)
-		category_words = remove_stopwords_and_punctuation(category_words)
-		category_words = filter_words_category(category_words)
-		list_words.extend(category_words)
+	category_words = []
+	for doc in reuters.fileids(category):
+		if doc.startswith('train'):
+			words = reuters.words(doc)
+			words = map(lambda w: w.lower(), words)
+			category_words.extend(words)
+	category_words = remove_stopwords_and_punctuation(category_words)
+	category_words = filter_words_category(category_words)
+	list_words.extend(category_words)
 
 	return list_words
 
@@ -121,8 +121,9 @@ def filter_words_category(words):
 	list_freq = map(lambda (k,v): v , freq_items)
 	avg = mean(list_freq)
 	std = std_dev(list_freq, avg)
-	fil = filter(lambda (k,v): (avg-std/100) <=v and (avg+std/100)>=v, freq_items)
+	fil = filter(lambda (k,v): (avg-std/50) <=v and (avg+std/50)>=v, freq_items)
 
+	print "avg "+ str(avg)+" std "+str(std)
 	return map(lambda (k,v): k, fil)
 
 def count_frequency(words):
@@ -137,6 +138,8 @@ def count_frequency(words):
 
 def extract_feature(words, features):
 	freq = {}
+	for fe in features:
+		freq[fe] = 0
 	for w in words:
 		if w in features:
 			if(w in freq):
@@ -178,10 +181,13 @@ def get_sets_from_category(category, bag_of_words):
 	return (train_set, test_set)
 
 def main():
-	bag_of_words = get_words_features()
+	
 	metrics_per_category_classifier = []
 
 	for cat in CLASSES:
+		bag_of_words = get_words_features(cat)
+
+		print "Len Bag Of Words "+str(len(bag_of_words))
 		ref = []
 		resu = []
 
@@ -204,5 +210,33 @@ def main():
 	micro_metrics = calculate_micro_metrics(metrics_per_category_classifier, 'Naive Bayes Classifier')
 	print "Micro Metrics"
 	print_metrics(micro_metrics)
+
+
+
+	for cat in CLASSES:
+		bag_of_words = get_words_features(cat)
+		ref = []
+		resu = []
+
+		train_set, test_set = get_sets_from_category(cat, bag_of_words)
+		classif = SklearnClassifier(SVC(), sparse=False).train(train_set)
+
+		for (feat,label) in test_set:
+			ref.append(label)
+			observed = classif.classify(feat)
+			resu.append(observed)
+
+		category_classifier_metrics = get_metrics(ref, resu, cat)
+		print_metrics(category_classifier_metrics)
+		metrics_per_category_classifier.append(category_classifier_metrics)
+
+	macro_metrics = calculate_macro_metrics(metrics_per_category_classifier, 'SVM SVC Classifier')
+	print "Macro Metrics"
+	print_metrics(macro_metrics, macro = True)
+
+	micro_metrics = calculate_micro_metrics(metrics_per_category_classifier, 'SVM SVC Classifier')
+	print "Micro Metrics"
+	print_metrics(micro_metrics)
+
 			
 main()
